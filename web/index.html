@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Coach">
+<meta name="theme-color" content="#eef2f9">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon.png">
+<title>Coach</title>
+<style>
+:root{
+  --bg1:#dfe9fb; --bg2:#fbe6f0; --bg3:#eaf4ec;
+  --kaart:#ffffff; --lijn:#eef0f4;
+  --tekst:#1c1e21; --zacht:#8a8f98;
+  --strain:#ff9a3c; --herstel:#33c46a; --slaap:#6d8bff; --accent:#1c1e21;
+  --schaduw:0 1px 2px rgba(20,20,30,.04), 0 8px 24px rgba(20,20,30,.06);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;color:var(--tekst);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  background:
+    radial-gradient(120% 60% at 15% 0%, var(--bg1) 0%, transparent 60%),
+    radial-gradient(120% 60% at 100% 10%, var(--bg2) 0%, transparent 55%),
+    radial-gradient(100% 50% at 50% 100%, var(--bg3) 0%, transparent 60%),
+    #f4f6fb;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  overscroll-behavior-y:contain}
+.wrap{max-width:520px;margin:0 auto;padding:22px 16px 100px}
+.datum{font-size:13px;color:var(--zacht);font-weight:600;text-transform:capitalize}
+h1{font-size:26px;margin:2px 0 18px;letter-spacing:-.02em;font-weight:800}
+
+.kaart{background:var(--kaart);border-radius:22px;box-shadow:var(--schaduw);
+  padding:18px 18px 16px;margin-bottom:12px}
+
+.ringen{display:flex;justify-content:space-between;gap:8px;padding:2px 2px 4px}
+.ringcel{display:flex;flex-direction:column;align-items:center;gap:7px;flex:1}
+.ringcel .naam{font-size:12px;color:var(--zacht);font-weight:600}
+
+.groet{font-size:15px;font-weight:700;margin-bottom:2px}
+.inzicht{font-size:14px;color:#4a4f57;line-height:1.5}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tegel{background:var(--kaart);border-radius:20px;box-shadow:var(--schaduw);padding:14px 16px}
+.tegel .label{font-size:12px;color:var(--zacht);font-weight:600}
+.tegel .waarde{font-size:28px;font-weight:800;letter-spacing:-.03em;margin-top:2px;
+  font-variant-numeric:tabular-nums}
+.tegel .waarde small{font-size:13px;font-weight:600;color:var(--zacht);margin-left:2px}
+.tegel .extra{font-size:12px;color:var(--zacht);margin-top:3px;font-weight:500}
+.breed{grid-column:1 / -1}
+.vonk{display:block;width:100%;height:38px;margin-top:6px}
+.balk{height:6px;border-radius:4px;background:#eef0f4;margin-top:9px;overflow:hidden}
+.balk i{display:block;height:100%;border-radius:4px;background:var(--slaap)}
+
+.knopbalk{position:fixed;left:0;right:0;bottom:0;background:rgba(244,246,251,.85);
+  backdrop-filter:blur(16px);border-top:1px solid rgba(20,20,30,.06);
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+.knopbalk .rij{max-width:520px;margin:0 auto;display:flex;gap:8px}
+input,button{font:inherit;border-radius:16px;border:none}
+input{flex:1;min-width:0;background:#fff;box-shadow:var(--schaduw);color:var(--tekst);
+  padding:12px 16px;outline:none;border:1px solid var(--lijn)}
+input:focus{border-color:var(--slaap)}
+button{background:var(--accent);color:#fff;font-weight:700;padding:12px 20px}
+button:disabled{opacity:.4}
+
+.gesprek{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.bel{padding:11px 14px;border-radius:18px;max-width:88%;white-space:pre-wrap;font-size:14.5px}
+.van-mij{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:5px}
+.van-coach{align-self:flex-start;background:var(--kaart);box-shadow:var(--schaduw);
+  border-bottom-left-radius:5px}
+.denkt{color:var(--zacht);font-style:italic}
+.slot{display:flex;flex-direction:column;gap:10px;padding:60px 0}
+.fout{color:#d9455f;font-size:14px;margin-top:10px}
+.wissen{background:none;color:var(--zacht);font-size:13px;padding:6px 0;font-weight:600;
+  box-shadow:none}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap"></div>
+
+<div class="knopbalk" id="balk" hidden>
+  <div class="rij">
+    <input id="vraag" placeholder="Vraag iets over je data" autocomplete="off" enterkeyhint="send">
+    <button id="stuur">Vraag</button>
+  </div>
+</div>
+
+<script>
+const T = () => localStorage.getItem('toegang') || '';
+const wrap = document.getElementById('wrap');
+const balk = document.getElementById('balk');
+let gesprek = JSON.parse(localStorage.getItem('gesprek') || '[]');
+
+const NIVEAU = {READY:'fris', MODERATE:'redelijk', LOW:'laag', VERY_LOW:'erg laag',
+                HIGH:'goed', PRIME:'topvorm'};
+const HRVST = {BALANCED:'in balans', UNBALANCED:'uit balans', LOW:'laag', POOR:'slecht'};
+const SLAAPK = {EXCELLENT:'uitstekend', GOOD:'goed', FAIR:'matig', POOR:'slecht'};
+
+function ring(pct, kleur, label, groot){
+  const r = 30, omtrek = 2 * Math.PI * r, deel = omtrek * ((pct || 0) / 100), s = groot ? 84 : 68;
+  return `<svg viewBox="0 0 76 76" width="${s}" height="${s}">
+    <circle cx="38" cy="38" r="${r}" fill="none" stroke="#eef0f4" stroke-width="7"/>
+    <circle cx="38" cy="38" r="${r}" fill="none" stroke="${kleur}" stroke-width="7"
+      stroke-linecap="round" stroke-dasharray="${deel} ${omtrek}"
+      transform="rotate(-90 38 38)"/>
+    <text x="38" y="44" text-anchor="middle" font-size="20" font-weight="800"
+      fill="#1c1e21">${label}</text></svg>`;
+}
+
+function vonk(punten){
+  if (!punten || punten.length < 2) return '';
+  const w = 280, h = 38, waarden = punten.map(p => p.hrv);
+  const min = Math.min(...waarden), max = Math.max(...waarden), bereik = (max - min) || 1;
+  const pad = punten.map((p, i) => {
+    const x = (i / (punten.length - 1)) * (w - 6) + 3;
+    const y = h - 6 - ((p.hrv - min) / bereik) * (h - 14);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg class="vonk" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pad}" fill="none" stroke="var(--slaap)" stroke-width="2.5"
+      stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+function toonSlot(melding){
+  balk.hidden = true;
+  wrap.innerHTML = `<div class="slot"><h1>Coach</h1>
+    <p class="datum">Voer je toegangscode in.</p>
+    <input id="code" type="password" placeholder="Toegangscode" autocomplete="current-password">
+    <button id="open">Openen</button>
+    ${melding ? `<div class="fout">${melding}</div>` : ''}</div>`;
+  document.getElementById('open').onclick = () => {
+    localStorage.setItem('toegang', document.getElementById('code').value.trim());
+    laad();
+  };
+  document.getElementById('code').onkeydown = e => {
+    if (e.key === 'Enter') document.getElementById('open').click();
+  };
+}
+
+function teken(d){
+  const g = d.gereedheid, s = d.slaap, h = d.hartslag, bb = d.body_battery;
+  const stap = d.stappen.doel ? Math.min(100, d.stappen.aantal / d.stappen.doel * 100) : 0;
+  const slaapPct = s.score ?? 0;
+  const bbPct = bb.nu ?? 0;
+
+  wrap.innerHTML = `
+    <div class="datum">${new Date().toLocaleDateString('nl-NL',
+      {weekday:'long', day:'numeric', month:'long'})} · horloge ${
+      (d.sync.laatste_synchronisatie || '').slice(11)}</div>
+    <h1>${d.groet}, Daniel</h1>
+
+    <div class="kaart">
+      <div class="ringen">
+        <div class="ringcel">${ring(g.score, 'var(--herstel)', g.score ?? '?')}
+          <div class="naam">gereedheid</div></div>
+        <div class="ringcel">${ring(bbPct, 'var(--strain)', bbPct || '?')}
+          <div class="naam">body battery</div></div>
+        <div class="ringcel">${ring(slaapPct, 'var(--slaap)', slaapPct || '?')}
+          <div class="naam">slaap</div></div>
+      </div>
+      <div style="margin-top:14px;border-top:1px solid var(--lijn);padding-top:12px">
+        <div class="groet">${NIVEAU[g.niveau] ? 'Je bent ' + NIVEAU[g.niveau] : ''}</div>
+        <div class="inzicht">${d.inzicht}</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="tegel"><div class="label">hartslag nu</div>
+        <div class="waarde">${h.nu ?? '–'}<small>bpm</small></div>
+        <div class="extra">${h.gemeten_om ? 'om ' + h.gemeten_om : ''}</div></div>
+
+      <div class="tegel"><div class="label">rusthartslag</div>
+        <div class="waarde">${h.rust ?? '–'}<small>bpm</small></div>
+        <div class="extra">week ${h.rust_week ?? '–'}</div></div>
+
+      <div class="tegel"><div class="label">slaapduur</div>
+        <div class="waarde">${s.uren ?? '–'}<small>uur</small></div>
+        <div class="extra">${SLAAPK[s.kwaliteit] || ''}</div></div>
+
+      <div class="tegel"><div class="label">stress</div>
+        <div class="waarde">${d.stress.gemiddeld ?? '–'}</div>
+        <div class="extra">hoogste ${d.stress.hoogste ?? '–'}</div></div>
+
+      <div class="tegel breed"><div class="label">hrv vannacht</div>
+        <div class="waarde">${d.hrv.nacht ?? '–'}<small>ms</small></div>
+        <div class="extra">week ${d.hrv.week ?? '–'} · ${HRVST[d.hrv.status] || ''}</div>
+        ${vonk(d.hrv.verloop)}</div>
+
+      <div class="tegel breed"><div class="label">stappen</div>
+        <div class="waarde">${(d.stappen.aantal ?? 0).toLocaleString('nl-NL')}
+          <small>/ ${(d.stappen.doel ?? 0).toLocaleString('nl-NL')}</small></div>
+        <div class="balk"><i style="width:${stap}%"></i></div></div>
+    </div>
+
+    <div class="gesprek" id="gesprek"></div>
+    ${gesprek.length ? '<button class="wissen" id="wis">gesprek wissen</button>' : ''}`;
+  tekenGesprek();
+  const wis = document.getElementById('wis');
+  if (wis) wis.onclick = () => { gesprek = []; bewaar(); teken(d); };
+  balk.hidden = false;
+}
+
+function tekenGesprek(){
+  const el = document.getElementById('gesprek');
+  if (!el) return;
+  el.innerHTML = gesprek.map(r =>
+    `<div class="bel ${r.rol === 'user' ? 'van-mij' : 'van-coach'}">${
+      r.tekst.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</div>`).join('');
+}
+
+function bewaar(){ localStorage.setItem('gesprek', JSON.stringify(gesprek.slice(-20))); }
+
+let laatste = null;
+async function laad(){
+  if (!T()) return toonSlot('');
+  try {
+    const r = await fetch('/api/dashboard', {headers: {'X-Toegang': T()}});
+    if (r.status === 401) { localStorage.removeItem('toegang'); return toonSlot('Code klopt niet.'); }
+    if (!r.ok) throw new Error((await r.json()).detail || 'Ophalen mislukt');
+    laatste = await r.json();
+    teken(laatste);
+  } catch (e) {
+    if (!laatste) wrap.innerHTML = `<div class="slot"><h1>Coach</h1>
+      <div class="fout">${e.message}</div></div>`;
+  }
+}
+
+async function vragen(){
+  const veld = document.getElementById('vraag');
+  const tekst = veld.value.trim();
+  if (!tekst) return;
+  veld.value = '';
+  gesprek.push({rol: 'user', tekst});
+  gesprek.push({rol: 'assistant', tekst: 'denkt na...'});
+  tekenGesprek(); bewaar();
+  window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
+  try {
+    const r = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Toegang': T()},
+      body: JSON.stringify({vraag: tekst, geschiedenis: gesprek.slice(0, -2)}),
+    });
+    const d = await r.json();
+    gesprek[gesprek.length - 1] = {rol: 'assistant', tekst: d.antwoord || d.detail || 'Er ging iets mis.'};
+  } catch (e) {
+    gesprek[gesprek.length - 1] = {rol: 'assistant', tekst: 'Geen verbinding.'};
+  }
+  bewaar(); tekenGesprek();
+  window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
+}
+
+document.getElementById('stuur').onclick = vragen;
+document.getElementById('vraag').onkeydown = e => { if (e.key === 'Enter') vragen(); };
+document.addEventListener('visibilitychange', () => { if (!document.hidden) laad(); });
+setInterval(() => { if (!document.hidden) laad(); }, 60000);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+laad();
+</script>
+</body>
+</html>
