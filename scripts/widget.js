@@ -84,7 +84,6 @@ function ringAfbeelding(percentage, kleur, grootte, dikte) {
   const eind = start + 2 * Math.PI * (Math.max(0, Math.min(100, percentage)) / 100);
 
   ctx.setLineWidth(dikte);
-  ctx.setLineJoin(1);
   ctx.setStrokeColor(KLEUR.achtergrondring);
   boogpunten(ctx, midden, straal, start, start + 2 * Math.PI);
 
