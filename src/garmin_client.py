@@ -36,6 +36,23 @@ def client() -> Garmin:
             return _client
         vanuit_omgeving = os.getenv("GARMIN_TOKEN_JSON")
         if vanuit_omgeving:
+            vanuit_omgeving = vanuit_omgeving.strip()
+            try:
+                import json
+
+                verplicht = json.loads(vanuit_omgeving)
+                for veld in ("di_token", "di_refresh_token", "di_client_id"):
+                    if not verplicht.get(veld):
+                        raise ValueError(f"veld '{veld}' ontbreekt")
+            except Exception as fout:
+                raise NietIngelogd(
+                    "GARMIN_TOKEN_JSON is geen geldige sessie: "
+                    f"{fout}. Waarschijnlijk is er bij het kopiëren een teken "
+                    "bijgekomen, bijvoorbeeld het '%' dat de Mac terminal aan "
+                    "het eind van een regel laat zien. Draai scripts/toon_token.py "
+                    "opnieuw en kopieer alleen de regel die met { begint en met } "
+                    "eindigt."
+                ) from fout
             g = Garmin()
             g.login(vanuit_omgeving)
             _client = g
