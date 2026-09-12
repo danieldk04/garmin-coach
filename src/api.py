@@ -38,6 +38,17 @@ def _bewaak(code: str | None) -> None:
         raise HTTPException(status_code=401, detail="Geen toegang")
 
 
+@app.exception_handler(Exception)
+async def _onverwachte_fout(_: Request, fout: Exception) -> JSONResponse:
+    """Vangnet: geef altijd JSON terug, nooit kale servertekst die de app niet
+    kan lezen. Zo blijft de fout zichtbaar in de app in plaats van kapot te gaan
+    op een 'Unexpected token' foutmelding."""
+    import traceback
+
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"detail": f"Serverfout: {fout}"})
+
+
 # --------------------------------------------------------------------------- #
 #  Dashboard
 # --------------------------------------------------------------------------- #
